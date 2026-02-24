@@ -24,10 +24,10 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-[#E4F3FF]  ">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-[90px] items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+            <div className="flex h-[50px] w-[50px] items-center justify-center rounded-lg bg-primary">
               <span className="text-sm font-bold text-primary-foreground">D</span>
             </div>
             <span className="hidden font-semibold sm:inline-block">LOGO</span>
@@ -47,11 +47,11 @@ export function Header() {
           </nav>
 
           {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-4">
-            <Button variant="ghost" size="sm">
+          <div className="hidden md:flex items-center gap-4 ">
+            <Button variant="ghost" size="sm" className='text-base font-normal leading-[150%] hover:bg-none'>
               Sign in
             </Button>
-            <Button size="sm" className="bg-primary hover:bg-primary/90">
+            <Button size="sm" className="bg-[#0024DA] hover:bg-[#0024DA]/90 text-base font-normal leading-[150%] h-[48px]">
               Start fundraising
             </Button>
           </div>
@@ -64,7 +64,7 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px]">
-              <nav className="flex flex-col gap-4 mt-8">
+              <nav className="flex flex-col gap-4 mt-8 text-base font-normal leading-[150%]">
                 {navLinks.map((link) => (
                   <SheetClose key={link.label} asChild>
                     <Link
