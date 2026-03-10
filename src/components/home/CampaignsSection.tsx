@@ -2,43 +2,63 @@
 
 import Link from "next/link";
 import { CampaignCard } from "./CampaignCard";
+import { useQuery } from "@tanstack/react-query";
 
-const campaigns = [
-  {
-    id: 1,
-    title: "Bringing health to those who need it most",
-    description:
-      "Access to healthcare should be a right, not a privilege. Read more about our efforts to help communities get the care they need.",
-    image: "/images/damoImage.jpg",
-    raised: 20256,
-    goal: 100000,
-    daysLeft: "Expired in 7days",
-  },
-  {
-    id: 2,
-    title: "Bringing health to those who need it most",
-    description:
-      "Access to healthcare should be a right, not a privilege. Read more about our efforts to help communities get the care they need.",
-    image: "/images/damoImage.jpg",
-    raised: 24256,
-    goal: 100000,
-    daysLeft: "Expired in 7days",
-  },
-  {
-    id: 3,
-    title: "Bringing health to those who need it most",
-    description:
-      "Access to healthcare should be a right, not a privilege. Read more about our efforts to help communities get the care they need.",
-    image: "/images/damoImage.jpg",
-    raised: 53256,
-    goal: 100000,
-    daysLeft: "Expired in 7days",
-  },
-];
+interface Media {
+  url: string;
+}
+
+interface CampaignApi {
+  _id: string;
+  name: string;
+  description: string;
+  media: Media[];
+  totalRaised: number;
+  raiseGoal: string;
+}
+
+interface CampaignUI {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  raised: number;
+  goal: number;
+  daysLeft?: string;
+}
 
 export function CampaignsSection() {
+  const { data: campaignData, isLoading } = useQuery<CampaignApi[]>({
+    queryKey: ["campaign"],
+    queryFn: async () => {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/campaign`
+      );
+
+      const data = await res.json();
+      return data?.data?.campaigns;
+    },
+  });
+
+  const campaigns: CampaignUI[] =
+    campaignData?.map((item) => ({
+      id: item._id,
+      title: item.name,
+      description: item.description,
+      image:
+        item.media?.length > 0
+          ? item.media[0].url
+          : "/images/damoImage.jpg",
+      raised: item.totalRaised ?? 0,
+      goal: Number(item.raiseGoal) || 0,
+      daysLeft: "Expired in 7days",
+    })) || [];
+
   return (
-    <section id="campaigns" className="py-12 sm:py-16 lg:py-24 bg-background my-3">
+    <section
+      id="campaigns"
+      className="py-12 sm:py-16 lg:py-24 bg-background my-3"
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto">
@@ -55,7 +75,7 @@ export function CampaignsSection() {
         <div className="flex justify-end items-center mt-10">
           <Link
             href="/all-campaigns"
-            className="text-gray-900 px-6 rounded-md font-medium hover:bg-gray-50 transition-colors text-center whitespace-nowrap "
+            className="text-gray-900 px-6 rounded-md font-medium  transition-colors text-center whitespace-nowrap"
           >
             See All
           </Link>
@@ -63,9 +83,11 @@ export function CampaignsSection() {
 
         {/* Campaign Grid */}
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {campaigns.map((campaign) => (
-            <CampaignCard key={campaign.id} campaign={campaign} />
-          ))}
+          {isLoading
+            ? "Loading..."
+            : campaigns.map((campaign) => (
+                <CampaignCard key={campaign.id} campaign={campaign} />
+              ))}
         </div>
       </div>
     </section>

@@ -7,10 +7,10 @@ import { Button } from '../ui/button';
 import { ArrowRight } from 'lucide-react';
 
 interface Campaign {
-  id: number;
+  id: string; // ✅ number → string
   title: string;
   description: string;
-  image: string; // ✅ string path
+  image: string;
   raised: number;
   goal: number;
   daysLeft?: string;
@@ -21,7 +21,9 @@ interface CampaignCardProps {
 }
 
 export function CampaignCard({ campaign }: CampaignCardProps) {
-  const progress = (campaign.raised / campaign.goal) * 100;
+
+  const progress =
+    campaign.goal > 0 ? (campaign.raised / campaign.goal) * 100 : 0;
 
   const raisedFormatted = `$${campaign.raised.toLocaleString()}`;
   const goalFormatted = `$${campaign.goal.toLocaleString()}`;
@@ -64,19 +66,17 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
           </div>
-            <div className='flex justify-between items-center mt-5'>
-          <p className="text-2xl font-semibold text-[#131313] ">
-            {raisedFormatted}
-          </p>
-            <div>
-              <Button className='bg-[#7DBAED] hover:bg-[#7DBAED]/90  h-[42px] rounded-full text-sm font-semibold'>
-                Donate
-                <span>
-                      <ArrowRight />
-                </span>
-              </Button>
-            </div>
-            </div>
+
+          <div className="flex justify-between items-center mt-5">
+            <p className="text-2xl font-semibold text-[#131313]">
+              {raisedFormatted}
+            </p>
+
+            <Button className="bg-[#7DBAED] hover:bg-[#7DBAED]/90 h-[42px] rounded-full text-sm font-semibold">
+              Donate
+              <ArrowRight />
+            </Button>
+          </div>
 
           <p className="text-xs text-[#424242]">
             Raise goal {goalFormatted}
@@ -84,13 +84,13 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </div>
 
         {/* View Details Button */}
-     <div className='mt-6'>
-         <Link href={`/all-campaigns/${campaign.id}`}>
-          <button className="w-full border border-[#131313] text-gray-900 py-2 rounded-md font-medium hover:bg-gray-50 transition-colors">
-            View Details
-          </button>
-        </Link>
-     </div>
+        <div className="mt-6">
+          <Link href={`/all-campaigns/${campaign.id}`}>
+            <button className="w-full border border-[#131313] text-gray-900 py-2 rounded-md font-medium hover:bg-gray-50 transition-colors">
+              View Details
+            </button>
+          </Link>
+        </div>
       </div>
     </Card>
   );
