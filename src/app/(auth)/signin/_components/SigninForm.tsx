@@ -130,12 +130,12 @@ function SigninForm() {
                 />
                 <span className="ml-2 text-sm text-gray-700">Remember me</span>
               </label>
-              <a
+              {/* <a
                 href="#"
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
                 Forgot password?
-              </a>
+              </a> */}
             </div>
 
             {/* Login Button */}
