@@ -11,7 +11,7 @@ function Navbar() {
     <nav
       className="w-full bg-[#F5F2EB] border-b border-[#7D7D7D]"
     >
-      <div className="container mx-auto h-[80px] flex items-center justify-between">
+      <div className="max-w-6xl mx-auto h-[80px] flex items-center justify-between">
         {/* Logo */}
         <span className="text-[32px] font-bold tracking-tight text-gray-900 select-none">
           Logo

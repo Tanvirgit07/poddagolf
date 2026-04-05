@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, Play, Pause, Copy, Square } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Stage = "idle" | "recording" | "done" | "transcribing" | "transcribed";
@@ -274,16 +275,21 @@ function TranscribingView() {
 
 // ─── Stage 5 : Transcribed ────────────────────────────────────────────────────
 function TranscribedView({
-  text,
+  club,
+  distance,
+  direction,
   onRedo,
 }: {
-  text: string;
+  club: string;
+  distance: string;
+  direction: string;
   onRedo: () => void;
 }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(text);
+    const combinedText = [club, distance, direction].filter(Boolean).join(" ");
+    navigator.clipboard.writeText(combinedText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -295,9 +301,11 @@ function TranscribedView({
         Transcription
       </h1>
 
-      {/* Text box */}
+      {/* Single result field */}
       <div className="relative w-full bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 min-h-[60px]">
-        <p className="text-gray-800 text-sm leading-relaxed pr-8">{text}</p>
+        <p className="text-gray-800 text-sm leading-relaxed">
+          {[club, distance, direction].filter(Boolean).join(" ") || "-"}
+        </p>
         <button
           onClick={handleCopy}
           title="Copy"
@@ -325,12 +333,15 @@ function TranscribedView({
 
 // ─── Root Component ───────────────────────────────────────────────────────────
 export default function StartRecording() {
+  const SESSION_STORAGE_KEY = "recordingSessionId";
   const [stage, setStage] = useState<Stage>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
   const [duration, setDuration] = useState(0);
-  const [transcript, setTranscript] = useState("");
+  const [club, setClub] = useState("");
+  const [distance, setDistance] = useState("");
+  const [direction, setDirection] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -349,7 +360,45 @@ export default function StartRecording() {
     timerRef.current = setInterval(() => setElapsed((p) => p + 1), 1000);
   }, []);
 
+  const sendAudioMutation = useMutation({
+    mutationFn: async () => {
+      if (!audioUrl) throw new Error("Recorded audio is missing.");
+
+      const sessionId =
+        localStorage.getItem(SESSION_STORAGE_KEY) ||
+        (typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+
+      if (!localStorage.getItem(SESSION_STORAGE_KEY)) {
+        localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+      }
+
+      const audioBlob = await fetch(audioUrl).then((res) => res.blob());
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "recording.webm");
+      formData.append("sessionId", sessionId);
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/transcribe`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to transcribe audio.");
+      }
+
+      return res.json();
+    },
+  });
+
   const startRecording = useCallback(async () => {
+    const sessionId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -414,13 +463,22 @@ export default function StartRecording() {
   }, [startTimer]);
 
   const handleTranscribe = useCallback(async () => {
-    setStage("transcribing");
-    // ── Replace this mock with your Whisper / Claude API call ──
-    await new Promise((r) => setTimeout(r, 2000));
-    setTranscript("Your transcribed text will appear here.");
-    // ───────────────────────────────────────────────────────────
-    setStage("transcribed");
-  }, []);
+    try {
+      setStage("transcribing");
+      const result = await sendAudioMutation.mutateAsync();
+      setClub(result?.data?.shot?.club || "");
+      setDistance(
+        result?.data?.shot?.distance !== undefined
+          ? String(result.data.shot.distance)
+          : ""
+      );
+      setDirection(result?.data?.shot?.direction || "");
+      setStage("transcribed");
+    } catch {
+      setStage("done");
+      alert("Transcription failed. Please try again.");
+    }
+  }, [sendAudioMutation]);
 
   const handleRedo = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -430,13 +488,14 @@ export default function StartRecording() {
     setElapsed(0);
     setDuration(0);
     setAudioUrl("");
-    setTranscript("");
+    setClub("");
+    setDistance("");
+    setDirection("");
     setStage("idle");
   }, []);
-
   return (
     <div className="flex min-h-[calc(100vh-85px)] w-full items-center justify-center px-4">
-      <div className="container mx-auto flex h-[630px] w-full flex-col items-center justify-center rounded-lg bg-white py-16">
+      <div className="max-w-6xl mx-auto flex h-[630px] w-full flex-col items-center justify-center rounded-lg bg-white py-16">
         {stage === "idle" && <IdleView onStart={startRecording} />}
         {stage === "recording" && (
           <RecordingView
@@ -457,7 +516,12 @@ export default function StartRecording() {
         )}
         {stage === "transcribing" && <TranscribingView />}
         {stage === "transcribed" && (
-          <TranscribedView text={transcript} onRedo={handleRedo} />
+          <TranscribedView
+            club={club}
+            distance={distance}
+            direction={direction}
+            onRedo={handleRedo}
+          />
         )}
       </div>
     </div>
