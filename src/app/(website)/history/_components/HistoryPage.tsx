@@ -161,33 +161,45 @@ export default function HistoryPage() {
         </button>
         <h1 className="text-[2.4rem] font-bold text-gray-900 mb-6">History</h1>
 
-        <div className="flex flex-col gap-3">
-          {isLoading
-            ? Array.from({ length: 3 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-4 gap-4 px-6 py-5 border border-gray-200 rounded-2xl bg-white"
-                >
-                  <div className="flex flex-col gap-2">
-                    <Skeleton className="h-3 w-10" />
-                    <Skeleton className="h-5 w-20" />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Skeleton className="h-3 w-10" />
-                    <Skeleton className="h-5 w-24" />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-5 w-28" />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Skeleton className="h-3 w-14" />
-                    <Skeleton className="h-5 w-16" />
-                  </div>
+        {isLoading ? (
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-4 gap-4 px-6 py-5 border border-gray-200 rounded-2xl bg-white"
+              >
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-3 w-10" />
+                  <Skeleton className="h-5 w-20" />
                 </div>
-              ))
-            : shots.map((shot) => <ShotRow key={shot._id} shot={shot} />)}
-        </div>
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-3 w-10" />
+                  <Skeleton className="h-5 w-24" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-5 w-28" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-3 w-14" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : shots.length === 0 ? (
+          <div className="min-h-[55vh] w-full flex items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white/70">
+            <p className="text-center text-lg font-medium text-gray-600">
+              No history found yet.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {shots.map((shot) => (
+              <ShotRow key={shot._id} shot={shot} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
