@@ -20,21 +20,25 @@ type Direction =
 interface ShotRecord {
   _id: string;
   time: string;
-  club: string;
+  club: string | null;
   direction: Direction;
   distance: number | null;
+  shotType?: string | null;
+  position?: string | null;
+  scoring?: string | null;
+  event?: string | null;
 }
 
 // ─── Direction Arrow ──────────────────────────────────────────────────────────
 const DIRECTION_META: Record<Direction, { arrow: string; color: string }> = {
-  STRAIGHT:     { arrow: "↑",  color: "#3b82f6" },
+  STRAIGHT: { arrow: "↑", color: "#3b82f6" },
   "SLIGHT RIGHT": { arrow: "↗", color: "#3b82f6" },
-  "SLIGHT LEFT":  { arrow: "↖", color: "#3b82f6" },
-  DRAW:         { arrow: "↑",  color: "#3b82f6" },
-  FADE:         { arrow: "↑",  color: "#3b82f6" },
-  "HEAVY LEFT": { arrow: "←",  color: "#3b82f6" },
-  "HEAVY RIGHT":{ arrow: "→",  color: "#3b82f6" },
-  "N/A":        { arrow: "•",  color: "#9ca3af" },
+  "SLIGHT LEFT": { arrow: "↖", color: "#3b82f6" },
+  DRAW: { arrow: "↑", color: "#3b82f6" },
+  FADE: { arrow: "↑", color: "#3b82f6" },
+  "HEAVY LEFT": { arrow: "←", color: "#3b82f6" },
+  "HEAVY RIGHT": { arrow: "→", color: "#3b82f6" },
+  "N/A": { arrow: "•", color: "#9ca3af" },
 };
 
 interface SessionShotApi {
@@ -42,6 +46,10 @@ interface SessionShotApi {
   club: string;
   distance: number | null;
   direction: string | null;
+  shotType?: string | null;
+  position?: string | null;
+  scoring?: string | null;
+  event?: string | null;
   recordedAt: string;
 }
 
@@ -87,7 +95,7 @@ function ShotRow({ shot }: { shot: ShotRecord }) {
       {/* Club */}
       <div className="flex flex-col gap-1">
         <span className="text-xs text-gray-400 font-medium tracking-wide">Club</span>
-        <span className="text-[1.05rem] font-bold text-gray-900">{shot.club}</span>
+        <span className="text-[1.05rem] font-bold text-gray-900">{shot.club ?? "-"}</span>
       </div>
 
       {/* Direction */}
@@ -111,6 +119,30 @@ function ShotRow({ shot }: { shot: ShotRecord }) {
           )}
         </span>
       </div>
+
+      {/* Shot Type */}
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-gray-400">Shot Type</span>
+        <span className="font-bold text-gray-900">{shot.shotType ?? "-"}</span>
+      </div>
+
+      {/* Position */}
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-gray-400">Position</span>
+        <span className="font-bold text-gray-900">{shot.position ?? "-"}</span>
+      </div>
+
+      {/* Scoring */}
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-gray-400">Scoring</span>
+        <span className="font-bold text-gray-900">{shot.scoring ?? "-"}</span>
+      </div>
+
+      {/* Event */}
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-gray-400">Event</span>
+        <span className="font-bold text-gray-900">{shot.event ?? "-"}</span>
+      </div>
     </div>
   );
 }
@@ -122,7 +154,8 @@ export default function HistoryPage() {
   const { data: shots = [], isLoading } = useQuery({
     queryKey: ["session-shots"],
     queryFn: async () => {
-      const sessionId = localStorage.getItem("recordingSessionId") || "my-round-001";
+      const sessionId =
+        localStorage.getItem("recordingSessionId") || "my-round-001";
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/shots/session/${sessionId}`
       );
@@ -138,6 +171,10 @@ export default function HistoryPage() {
         club: item.club,
         direction: normalizeDirection(item.direction),
         distance: item.distance,
+        shotType: item.shotType,
+        position: item.position,
+        scoring: item.scoring,
+        event: item.event,
       }));
     },
   });
@@ -159,7 +196,10 @@ export default function HistoryPage() {
           <ArrowLeft className="h-4 w-4" />
           Back
         </button>
-        <h1 className="text-[2.4rem] font-bold text-gray-900 mb-6">History</h1>
+
+        <h1 className="text-[2.4rem] font-bold text-gray-900 mb-6">
+          History
+        </h1>
 
         {isLoading ? (
           <div className="flex flex-col gap-3">

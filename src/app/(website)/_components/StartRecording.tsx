@@ -188,53 +188,105 @@ function TranscribedView({
   club,
   distance,
   direction,
+  shotType,
+  position,
+  scoring,
+  event,
   onRedo,
 }: {
   club: string;
   distance: string;
   direction: string;
+  shotType: string;
+  position: string;
+  scoring: string;
+  event: string;
   onRedo: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const displayValues = [
+    club,
+    distance ? `${distance}m` : "",
+    direction,
+    shotType,
+    position,
+    scoring,
+    event,
+  ].filter(Boolean);
 
   const handleCopy = () => {
-    const combinedText = [club, distance, direction].filter(Boolean).join(" ");
+    const combinedText = displayValues.join(", ");
     navigator.clipboard.writeText(combinedText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-lg">
+    <div className="flex flex-col items-center gap-6 w-full max-w-2xl">
       <MicIcon />
       <h1 className="text-[2.1rem] font-bold text-gray-900 text-center leading-tight">
         Transcription
       </h1>
 
       {/* Single result field */}
-      <div className="relative w-full bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 min-h-[60px]">
-        <p className="text-black text-[18px] leading-relaxed font-medium tracking-wide flex items-center gap-2">
-          {club && <span className="">{club},</span>}
+      <div className="relative w-full bg-blue-50 border border-blue-100 rounded-xl px-4 py-4 min-h-[120px] flex flex-col justify-between">
+        {/* Content */}
+        <div className="text-black text-[18px] leading-relaxed font-medium tracking-wide space-y-3 pr-8">
+          {displayValues.length > 0 ? (
+            <>
+              {/* First Box */}
+              <div className="bg-blue-100 border border-blue-200 rounded-lg px-3 py-2">
+                <div className="flex flex-wrap items-center gap-1">
+                  {[club, distance ? `${distance}m` : "", direction, shotType]
+                    .filter(Boolean)
+                    .map((value, idx) => {
+                      const isDistance = distance && value === `${distance}m`;
+                      return (
+                        <span
+                          key={`top-${value}-${idx}`}
+                          className={
+                            isDistance ? "" : ""
+                          }
+                        >
+                          {idx > 0 ? ", " : ""}
+                          {value}
+                        </span>
+                      );
+                    })}
+                </div>
+              </div>
 
-          {distance && (
-            <span className="px-1 py-0.5 bg-gray-100 rounded-md">
-              {distance}m,
-            </span>
+              {/* Second Box */}
+              <div className="bg-gray-100 border border-gray-200 rounded-lg px-3 py-2">
+                <div className="flex flex-wrap items-center gap-1">
+                  {[position, scoring, event]
+                    .filter(Boolean)
+                    .map((value, idx) => (
+                      <span key={`bottom-${value}-${idx}`}>
+                        {idx > 0 ? ", " : ""}
+                        {value}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            "-"
           )}
+        </div>
 
-          {direction && <span className="">{direction}</span>}
-
-          {!club && !distance && !direction && "-"}
-        </p>
+        {/* Copy Button */}
         <button
           onClick={handleCopy}
           title="Copy"
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-3 right-3 p-1 rounded-md hover:bg-gray-200 transition"
         >
-          <Copy className="w-4 h-4" />
+          <Copy className="w-4 h-4 text-gray-500" />
         </button>
+
+        {/* Copied Text */}
         {copied && (
-          <span className="absolute bottom-2 right-3 text-xs text-green-600 font-medium">
+          <span className="absolute bottom-3 right-3 text-xs text-green-600 font-medium bg-white px-2 py-1 rounded-md shadow-sm">
             Copied!
           </span>
         )}
@@ -261,6 +313,10 @@ export default function StartRecording() {
   const [club, setClub] = useState("");
   const [distance, setDistance] = useState("");
   const [direction, setDirection] = useState("");
+  const [shotType, setShotType] = useState("");
+  const [position, setPosition] = useState("");
+  const [scoring, setScoring] = useState("");
+  const [event, setEvent] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -350,6 +406,10 @@ export default function StartRecording() {
             : "",
         );
         setDirection(result?.data?.shot?.direction || "");
+        setShotType(result?.data?.shot?.shotType || "");
+        setPosition(result?.data?.shot?.position || "");
+        setScoring(result?.data?.shot?.scoring || "");
+        setEvent(result?.data?.shot?.event || "");
         setStage("transcribed");
       } catch {
         setStage("idle");
@@ -440,6 +500,10 @@ export default function StartRecording() {
     setClub("");
     setDistance("");
     setDirection("");
+    setShotType("");
+    setPosition("");
+    setScoring("");
+    setEvent("");
     setStage("idle");
   }, []);
 
@@ -474,14 +538,18 @@ export default function StartRecording() {
             />
           )}
           {stage === "transcribing" && <TranscribingView />}
-        {stage === "transcribed" && (
-          <TranscribedView
-            club={club}
-            distance={distance}
-            direction={direction}
-            onRedo={handleRedoAndStart}
-          />
-        )}
+          {stage === "transcribed" && (
+            <TranscribedView
+              club={club}
+              distance={distance}
+              direction={direction}
+              shotType={shotType}
+              position={position}
+              scoring={scoring}
+              event={event}
+              onRedo={handleRedoAndStart}
+            />
+          )}
         </div>
       </div>
     </div>
