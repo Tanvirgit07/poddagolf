@@ -21,12 +21,24 @@ interface SessionShotApi {
   rawText: string;
   recordedAt: string;
   isValid: boolean;
+  strokeCount?: number;
+}
+
+interface SummaryApi {
+  holeNumber: number;
+  totalStrokes: number;
+  scoring: string | null;
+  isValid: boolean;
+  invalidReasons: string[];
 }
 
 interface SessionShotsResponse {
   status: boolean;
   message: string;
-  data: SessionShotApi[];
+  data: {
+    shots: SessionShotApi[];
+    summary: SummaryApi[];
+  };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -61,7 +73,7 @@ const DIRECTION_META: Record<string, string> = {
   fade: "↑",
 };
 
-function groupByHole(shots: SessionShotApi[]): Map<number, SessionShotApi[]> {
+function groupByHole(shots: SessionShotApi[]) {
   const map = new Map<number, SessionShotApi[]>();
   for (const shot of shots) {
     const existing = map.get(shot.holeNumber) ?? [];
@@ -74,31 +86,34 @@ function groupByHole(shots: SessionShotApi[]): Map<number, SessionShotApi[]> {
 // ─── Shot Card ────────────────────────────────────────────────────────────────
 function ShotCard({ shot }: { shot: SessionShotApi }) {
   const dirArrow = shot.direction
-    ? (DIRECTION_META[shot.direction.toLowerCase()] ?? "•")
+    ? DIRECTION_META[shot.direction.toLowerCase()] ?? "•"
     : null;
 
   const scoringInfo = shot.scoring
-    ? (SCORING_META[shot.scoring.toLowerCase()] ?? null)
+    ? SCORING_META[shot.scoring.toLowerCase()] ?? null
     : null;
 
   return (
     <div className="flex items-start gap-3">
-      {/* Shot number bubble + connector */}
       <div className="flex flex-col items-center pt-1">
         <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
           style={{ backgroundColor: "#1a5c38" }}
         >
           {shot.shotNumber}
         </div>
+
+        {shot.strokeCount && (
+          <span className="text-[10px] text-gray-400 mt-1">
+            x{shot.strokeCount}
+          </span>
+        )}
       </div>
 
-      {/* Card */}
       <div
         className="flex-1 rounded-xl border border-gray-100 bg-white px-4 py-3 mb-3 shadow-sm"
         style={{ borderLeft: "3px solid #1a5c38" }}
       >
-        {/* Top row: badges + time */}
         <div className="flex flex-wrap items-center gap-2 mb-2">
           {shot.club && (
             <span
@@ -124,12 +139,11 @@ function ShotCard({ shot }: { shot: SessionShotApi }) {
               {scoringInfo.label}
             </span>
           )}
-          <span className="ml-auto text-xs text-gray-400 whitespace-nowrap">
+          <span className="ml-auto text-xs text-gray-400">
             {formatTime(shot.recordedAt)}
           </span>
         </div>
 
-        {/* Stats row */}
         {(shot.distance || shot.direction || shot.position) && (
           <div className="flex flex-wrap gap-4 text-sm mb-2">
             {shot.distance && (
@@ -144,11 +158,7 @@ function ShotCard({ shot }: { shot: SessionShotApi }) {
                 <span className="font-semibold capitalize">
                   {shot.direction}
                 </span>
-                {dirArrow && (
-                  <span className="text-gray-500 text-base leading-none">
-                    {dirArrow}
-                  </span>
-                )}
+                <span className="text-gray-500 text-base">{dirArrow}</span>
               </div>
             )}
             {shot.position && (
@@ -160,10 +170,9 @@ function ShotCard({ shot }: { shot: SessionShotApi }) {
           </div>
         )}
 
-        {/* Raw voice note */}
         {shot.rawText && (
           <p className="text-xs text-gray-400 italic">
-            &ldquo;{shot.rawText}&rdquo;
+            "{shot.rawText}"
           </p>
         )}
       </div>
@@ -175,18 +184,18 @@ function ShotCard({ shot }: { shot: SessionShotApi }) {
 function HoleSection({
   holeNumber,
   shots,
+  summary,
 }: {
   holeNumber: number;
   shots: SessionShotApi[];
+  summary?: SummaryApi;
 }) {
-  const scoringShot = shots.find((s) => s.scoring);
-  const scoringInfo = scoringShot?.scoring
-    ? (SCORING_META[scoringShot.scoring.toLowerCase()] ?? null)
+  const scoringInfo = summary?.scoring
+    ? SCORING_META[summary.scoring.toLowerCase()] ?? null
     : null;
 
   return (
     <div className="mb-7">
-      {/* Hole header */}
       <div className="flex items-center gap-3 mb-4">
         <div
           className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white font-bold text-sm"
@@ -195,7 +204,11 @@ function HoleSection({
           <Flag className="w-3.5 h-3.5" />
           Hole {holeNumber}
         </div>
-        <span className="text-sm text-gray-400">{shots.length} shots</span>
+
+        <span className="text-sm text-gray-400">
+          {summary?.totalStrokes ?? shots.length} strokes
+        </span>
+
         {scoringInfo && (
           <span
             className="px-3 py-0.5 rounded-full text-xs font-bold"
@@ -207,10 +220,10 @@ function HoleSection({
             {scoringInfo.label}
           </span>
         )}
+
         <div className="flex-1 h-px bg-gray-200" />
       </div>
 
-      {/* Shots */}
       <div className="pl-1">
         {shots.map((shot) => (
           <ShotCard key={shot._id} shot={shot} />
@@ -220,74 +233,129 @@ function HoleSection({
   );
 }
 
-// ─── Scorecard Strip ──────────────────────────────────────────────────────────
+// ─── Scorecard ────────────────────────────────────────────────────────────────
 function ScorecardStrip({
   holeGroups,
   sortedHoles,
-}: {
-  holeGroups: Map<number, SessionShotApi[]>;
-  sortedHoles: number[];
-}) {
+  summary,
+}: any) {
+  const invalidHoles = summary.filter(
+    (s: any) => !s.isValid && s.invalidReasons?.length > 0
+  );
+
   return (
     <div className="mb-8 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
       <div
-        className="px-5 py-2.5 text-white text-xs font-semibold tracking-widest uppercase"
+        className="px-5 py-2.5 text-white text-xs font-semibold uppercase"
         style={{ backgroundColor: "#1a5c38" }}
       >
         Scorecard
       </div>
+
       <div className="flex divide-x divide-gray-100 overflow-x-auto">
-        {sortedHoles.map((hole) => {
+        {sortedHoles.map((hole: number) => {
           const holeShots = holeGroups.get(hole)!;
-          const scoring = holeShots.find((s) => s.scoring)?.scoring;
-          const scoringInfo = scoring
-            ? (SCORING_META[scoring.toLowerCase()] ?? null)
-            : null;
+          const sum = summary.find((s: any) => s.holeNumber === hole);
+          const isInvalid = sum && !sum.isValid;
 
           return (
             <div
               key={hole}
-              className="flex-1 min-w-[56px] flex flex-col items-center py-3 px-2"
+              className="flex-1 min-w-[56px] flex flex-col items-center py-3 px-2 relative"
+              style={isInvalid ? { backgroundColor: "#fff8f8" } : {}}
             >
-              <span className="text-[11px] text-gray-400 font-medium mb-1">
-                H{hole}
+              {isInvalid && (
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-400" />
+              )}
+              <span className="text-[11px] text-gray-400">H{hole}</span>
+
+              <span
+                className="text-xl font-bold"
+                style={{ color: isInvalid ? "#dc2626" : "#111827" }}
+              >
+                {sum?.totalStrokes ?? holeShots.length}
               </span>
-              <span className="text-xl font-bold text-gray-900">
-                {holeShots.length}
-              </span>
-              {scoringInfo ? (
-                <span
-                  className="mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded"
-                  style={{
-                    color: scoringInfo.color,
-                    backgroundColor: scoringInfo.bg,
-                  }}
-                >
-                  {scoringInfo.label}
+
+              {sum?.scoring ? (
+                <span className="text-[10px] text-gray-600 capitalize">
+                  {sum.scoring}
                 </span>
               ) : (
-                <span className="mt-1 text-[10px] text-gray-300">—</span>
+                <span className="text-[10px] text-gray-300">—</span>
               )}
             </div>
           );
         })}
       </div>
+
+      {/* Invalid Reasons */}
+      {invalidHoles.length > 0 && (
+        <div className="border-t border-red-100 bg-red-50 px-4 py-3 flex flex-col gap-1.5">
+          {invalidHoles.map((s: any) =>
+            s.invalidReasons.map((reason: string, i: number) => (
+              <div key={`${s.holeNumber}-${i}`} className="flex items-start gap-2">
+                <span
+                  className="mt-0.5 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded text-white"
+                  style={{ backgroundColor: "#dc2626" }}
+                >
+                  H{s.holeNumber}
+                </span>
+                <span className="text-xs text-red-600">{reason}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Skeleton Loader ──────────────────────────────────────────────────────────
-function HistorySkeleton() {
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+function PageSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
-      {[1, 2].map((i) => (
-        <div key={i}>
-          <Skeleton className="h-8 w-32 rounded-full mb-4" />
-          <div className="flex flex-col gap-3 pl-1">
-            {[1, 2].map((j) => (
-              <div key={j} className="flex items-start gap-3">
-                <Skeleton className="w-7 h-7 rounded-full flex-shrink-0 mt-1" />
-                <Skeleton className="flex-1 h-20 rounded-xl" />
+    <div>
+      {/* Scorecard Skeleton */}
+      <div className="mb-8 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-5 py-2.5 bg-[#1a5c38]">
+          <Skeleton className="h-3 w-20 bg-green-700" />
+        </div>
+        <div className="flex divide-x divide-gray-100">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex-1 min-w-[56px] flex flex-col items-center py-3 px-2 gap-1">
+              <Skeleton className="h-3 w-6" />
+              <Skeleton className="h-7 w-8" />
+              <Skeleton className="h-2.5 w-10" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Hole Sections Skeleton */}
+      {Array.from({ length: 3 }).map((_, holeIdx) => (
+        <div key={holeIdx} className="mb-7">
+          <div className="flex items-center gap-3 mb-4">
+            <Skeleton className="h-8 w-24 rounded-full" />
+            <Skeleton className="h-4 w-16" />
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          <div className="pl-1">
+            {Array.from({ length: 3 }).map((_, shotIdx) => (
+              <div key={shotIdx} className="flex items-start gap-3 mb-3">
+                <Skeleton className="w-7 h-7 rounded-full mt-1 shrink-0" />
+                <div className="flex-1 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                  </div>
+                  <div className="flex gap-4 mb-2">
+                    <Skeleton className="h-4 w-14" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                  <Skeleton className="h-3 w-3/4" />
+                </div>
               </div>
             ))}
           </div>
@@ -301,64 +369,55 @@ function HistorySkeleton() {
 export default function HistoryPage() {
   const router = useRouter();
 
-  const { data: shots = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["session-shots"],
     queryFn: async () => {
       const sessionId =
-        localStorage.getItem("recordingSessionId") || "my-round-001";
+        localStorage.getItem("recordingSessionId") || "my-round-005";
+
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/shots/session/${sessionId}`
+        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/shots/round/my-round-005`
       );
-      if (!res.ok) throw new Error("Failed to fetch session shots.");
+
+      if (!res.ok) throw new Error("Failed");
+
       const json: SessionShotsResponse = await res.json();
       return json.data;
     },
   });
 
+  const shots = data?.shots || [];
+  const summary = data?.summary || [];
+
   const holeGroups = groupByHole(shots);
   const sortedHoles = Array.from(holeGroups.keys()).sort((a, b) => a - b);
 
   return (
-    <div
-      className="min-h-screen w-full px-5 py-8"
-      style={{
-        backgroundColor: "#F5F2EB",
-        fontFamily: "'SF Pro Display', 'Helvetica Neue', sans-serif",
-      }}
-    >
+    <div className="min-h-screen px-5 py-8 bg-[#F5F2EB]">
       <div className="max-w-6xl mx-auto">
-        {/* Back */}
         <button
-          type="button"
           onClick={() => router.push("/")}
-          className="mb-6 inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="mb-6 flex items-center gap-2 bg-white border px-4 py-2 rounded-lg"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="w-4 h-4" />
           Back
         </button>
 
-        {/* Title */}
-        <div className="mb-7">
-          <h1 className="text-[2rem] font-bold text-gray-900">Round History</h1>
-          {!isLoading && shots.length > 0 && (
-            <p className="text-gray-500 mt-1 text-sm">
-              {sortedHoles.length} hole{sortedHoles.length !== 1 ? "s" : ""} &middot;{" "}
-              {shots.length} total shots
-            </p>
-          )}
+        <h1 className="text-2xl font-bold mb-6">Round History</h1>
 
-          
-        </div>
-
-        {/* Body */}
         {isLoading ? (
-          <HistorySkeleton />
-        ) : shots.length === 0 ? (
-          <div className="min-h-[50vh] flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white/70 gap-3">
-            <Flag className="w-10 h-10 text-gray-300" />
-            <p className="text-gray-500 font-medium">No shots recorded yet</p>
-            <p className="text-sm text-gray-400">
-              Start a round to see your history here
+          <PageSkeleton />
+        ) : sortedHoles.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+              style={{ backgroundColor: "#e8f5ee" }}
+            >
+              <Flag className="w-7 h-7" style={{ color: "#1a5c38" }} />
+            </div>
+            <h2 className="text-lg font-bold text-gray-800 mb-1">No Round Data Yet</h2>
+            <p className="text-sm text-gray-400 max-w-xs">
+              You haven't recorded any shots for this round. Start your round and your shots will appear here.
             </p>
           </div>
         ) : (
@@ -366,12 +425,15 @@ export default function HistoryPage() {
             <ScorecardStrip
               holeGroups={holeGroups}
               sortedHoles={sortedHoles}
+              summary={summary}
             />
+
             {sortedHoles.map((hole) => (
               <HoleSection
                 key={hole}
                 holeNumber={hole}
                 shots={holeGroups.get(hole)!}
+                summary={summary.find((s) => s.holeNumber === hole)}
               />
             ))}
           </>
